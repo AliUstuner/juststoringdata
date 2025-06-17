@@ -1,0 +1,45 @@
+import asyncio
+import websockets
+from gpiozero import Servo
+from gpiozero.pins.pigpio import PiGPIOFactory
+import pigpio
+
+# pigpio daemon başlatıldı mı kontrol
+pi = pigpio.pi()
+if not pi.connected:
+    print("❌ pigpiod çalışmıyor! Lütfen: sudo pigpiod")
+    exit()
+
+factory = PiGPIOFactory()
+left_motor = Servo(18, pin_factory=factory)
+right_motor = Servo(19, pin_factory=factory)
+
+async def handle(websocket, path):
+    await websocket.send("Idle")
+    async for message in websocket:
+        print(f"Gelen komut: {message}")
+
+        if message == "forward":
+            left_motor.value = 1
+            right_motor.value = 1
+        elif message == "backward":
+            left_motor.value = -1
+            right_motor.value = -1
+        elif message == "left":
+            left_motor.value = -0.5
+            right_motor.value = 0.5
+        elif message == "right":
+            left_motor.value = 0.5
+            right_motor.value = -0.5
+        elif message == "stop":
+            left_motor.value = 0
+            right_motor.value = 0
+
+        await websocket.send(message)
+
+# WebSocket sunucusunu başlat
+start_server = websockets.serve(handle, "0.0.0.0", 8765)
+
+print("WebSocket sunucu çalışıyor: ws://localhost:8765/ws")
+asyncio.get_event_loop().run_until_complete(start_server)
+asyncio.get_event_loop().run_forever()
